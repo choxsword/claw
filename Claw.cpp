@@ -7,7 +7,12 @@ int MyServo::mov_to(double pos){
 }
 
 int MyServo::mov_speed(double pos, double speed){
-    return DynamixelClass::moveSpeed(Adaptor::adapt_pos(pos+offset),Adaptor::adapt_speed(speed));
+    int hex_speed=Adaptor::adapt_speed(speed);
+    if(hex_speed==0){
+        stop();
+        return -10;
+    }
+    return DynamixelClass::moveSpeed(Adaptor::adapt_pos(pos+offset),hex_speed);
 }
 
 double MyServo::read_pos(){
@@ -43,8 +48,8 @@ void MyServo::stop(double pos){
 
 void MyServo::init(int torque_state){
     launch();
-   DynamixelClass::setRDT(120);//跟 WAIT_RDT有关
-  // DynamixelClass::reset();
+   // DynamixelClass::reset();
+   DynamixelClass::setRDT(150);//跟 WAIT_RDT有关
     DynamixelClass::torqueStatus(torque_state);
 }
 
@@ -53,6 +58,17 @@ unsigned long MyServo::test_com_speed(){
     readSpeed();
     return micros()-start;
 }
+void MyServo::open_claw(Sensor& sensor){
+    double pos=0;
+    mov_speed(min_ang,60);
+  do {
+    pos = read_pos();
+    print(sensor.read_load());
+  } while (abs(pos - min_ang) > 1);
+  delay(wait_position);
+}
+
+
 
 double Sensor::read_load(){
     int digit=analogRead(pin);
@@ -73,3 +89,47 @@ void Sensor::alter_threshold(double new_threshold){
 bool Sensor::is_safe(){
     return read_load()<threshold;
 }
+
+
+void Controller::grab_by_p(const double fd,const double v0){
+    
+    servo.open_claw(sensor);
+    double vk=kp*fd;
+    double uk=vk+v0;
+    double fk=0;
+    double error=0;
+    double max_angle=servo.max_ang;
+    while(true){
+        servo.mov_speed(max_angle,uk);
+        delay(10);
+        fk=sensor.read_load();
+        error=fd-fk;
+        if(error<0.1||fk>fd)
+            break;
+        vk=kp*error;
+        uk=vk+v0;
+        servo.print(fk);
+    }
+    servo.print("00000000000000000000000000000000000");
+    servo.print(fk);
+    servo.print(servo.readPosition());
+    int pos = servo.readPosition();
+    unsigned long start_time = millis();
+    while (millis() - start_time < 2000)
+    {
+        fk = sensor.read_load();
+        error = fd - fk;
+        servo.print(error);
+        if (abs(error) > 0.1)
+        {
+            pos+= ((error > 0) ? 1 : -1);
+            servo.moveSpeed(pos,0);
+            servo.print(pos);
+           servo.print(servo.readPosition());
+            delay(50);
+        }
+    }
+    servo.print("111111111111111111111111111111111");
+    servo.print(Adaptor::rec_pos(pos) - 60);
+}
+
