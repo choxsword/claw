@@ -8,11 +8,11 @@ typedef unsigned long time_t;
 class Sensor
 {
   private:
-    const double p4=2.2732;
-    const double p3 = -31.013;
-    const double p2 = 159.11;
-    const double p1 = -366.21;
-    const double p0 = 322.03;
+    const double p4=0.6699;
+    const double p3 = -10.559;
+    const double p2 = 62.764;
+    const double p1 = -169.1;
+    const double p0 = 177.51;
     const unsigned char pin;
     double threshold;
 
@@ -42,7 +42,7 @@ class MyServo : public DynamixelClass
     void shut();   //关闭舵机通讯链接，启动串口
     unsigned long test_com_speed();
     void open_claw(Sensor&);
-
+    void open_claw();
     template <typename T>
     void print(T val);
 
@@ -54,6 +54,7 @@ class MyServo : public DynamixelClass
     const long baud;
     const long serial_baud;
     const unsigned char pin; //舵机通信接口
+    double mid_speed=60;
 
     int wait_position=500;
 };
@@ -75,26 +76,18 @@ class Controller{
     MyServo & servo;
     Sensor & sensor;
     double kp=10.0;
-    int ki=100;
+    double ki=10;
 
 
     public:
-    void grab_by_p(const double exp_force,const double v0);
-
-     void wait_print_sensor(unsigned long time){
-        unsigned long start=millis();
-        servo.shut();
-        while(millis()-start<time){
-            Serial.println(sensor.read_load());
-        }
-        servo.launch();
-    }
-    void wait_print_pos(unsigned long time){
-        unsigned long start=millis();
-        while(millis()-start<time){
-            servo.print(servo.readPosition());
-        }
-    }
+    void grab_by_p(const double exp_force,const double v0=0);
+    void grab_by_pi(const double,const double=0);
+    void grab_by_admit(const double);
+    void set_pi(double _kp=10.0,double _ki=10.0);
+    void hold_on(double);
+    void launch(double);
+     void wait_print_sensor(unsigned long time);
+    void wait_print_pos(unsigned long time);
 };
 
 
