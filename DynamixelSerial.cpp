@@ -494,7 +494,6 @@ int DynamixelClass::readPosition()
 			readData();                            // Length
 			if( (Error_Byte = readData()) != 0 )   // Error
 				return (Error_Byte*(-1));
-    
 			Position_Low_Byte = readData();            // Position Bytes
 			Position_High_Byte = readData();
 			Position_Long_Byte = Position_High_Byte << 8; 

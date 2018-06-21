@@ -1,7 +1,11 @@
 #pragma once
+//#define _CLAW_DEBUG_
+
 #include "IDynamixel.h"
 #include "DynamixelSerial.h"
-
+#include "Alarm.h"
+#include "fuzzy.h"
+#include "Upstream.h"
 namespace xzj
 {
 typedef unsigned long time_t;
@@ -42,15 +46,20 @@ class MyServo : public DynamixelClass
     void shut();   //关闭舵机通讯链接，启动串口
     unsigned long test_com_speed();
     void open_claw(Sensor&);
-    void open_claw();
+
+    void open_claw(double*speed=nullptr);
+    void close_claw(double*speed=nullptr);
+
     template <typename T>
     void print(T val);
 
-    const unsigned char min_ang = 0;
-    const unsigned char max_ang = 98;
+    bool is_in_place(const double pos);
+
+    const double min_ang = 0;
+    const double max_ang = 95;
 
   private:
-    const unsigned char offset = 60; //建立抽象角度，实际角度，实际角度hex值的映射
+    const double offset = 60; //建立抽象角度，实际角度，实际角度hex值的映射
     const long baud;
     const long serial_baud;
     const unsigned char pin; //舵机通信接口
@@ -62,32 +71,44 @@ class MyServo : public DynamixelClass
 template <typename T>
 void MyServo::print(T val)
 {
-    shut();
-    Serial.println(val);
-    launch();
+   // Serial.println(val);
 }
+
+
 
 class Controller{
     public:
-    Controller(MyServo& _servo,Sensor & _sensor):servo(_servo),sensor(_sensor){
+    Controller(MyServo& _servo,Sensor & _sensor,Alarm& _alarm):servo(_servo),sensor(_sensor),alarm(_alarm){
     }
 
     private:
     MyServo & servo;
     Sensor & sensor;
-    double kp=10.0;
+    Alarm & alarm;
+    double kp=15;
     double ki=10;
 
-
+    Fuzzy_controller fuzzy;
+    Upstream up_conn;
     public:
+
+	void check();
     void grab_by_p(const double exp_force,const double v0=0);
+    void test_p(const double exp_force,const double v0=0);
+
     void grab_by_pi(const double,const double=0);
+    void test_pi(const double,const double=0);
+
     void grab_by_admit(const double);
-    void set_pi(double _kp=10.0,double _ki=10.0);
+    void set_pi(double _kp=10.0,double _ki=8);
+
     void hold_on(double);
     void launch(double);
      void wait_print_sensor(unsigned long time);
     void wait_print_pos(unsigned long time);
+
+    void test_fuzzy(const double exp_force,const double v0=0);
+    void grab_by_fuzzy(const double exp_force,const double v0=0);
 };
 
 

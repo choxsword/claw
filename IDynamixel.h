@@ -1,7 +1,5 @@
 #pragma once
 
-enum class Direction:char{Open,Close};
-
 class IDynamixel{
 public:
 	virtual     void begin(long baud, unsigned char directionPin)=0;

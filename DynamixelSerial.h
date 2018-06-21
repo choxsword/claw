@@ -20,7 +20,7 @@
  *****************************************************************************
  Modifications:
  
- 25/07/2011 - Eliminado la modificacion serial para ser modificada dentro del mismo Hardware Serial.
+ 25/07/2011 - Eliminado la modificacion serial para ser modificada dentro del mismo Hardware Serial1.
  25/07/2011 - Modificado la funcion setBD() para aceptar todas la velocidades sin PDF.
  25/07/2011 - Agregada la funcion de Rotacion Continua.
  26/07/2011 - Agregada la funcion begin sin seteo de Direction_Pin.
@@ -185,12 +185,12 @@
 
 // Macro for the selection of the Serial Port
 
-#define sendData(args)  (Serial.write(args))    // Write Over Serial
-#define availableData() (Serial.available())    // Check Serial Data Available
-#define readData()      (Serial.read())         // Read Serial Data
-#define peekData()      (Serial.peek())         // Peek Serial Data
-#define beginCom(args)  (Serial.begin(args))    // Begin Serial Comunication
-#define endCom()        (Serial.end())          // End Serial Comunication
+#define sendData(args)  (Serial1.write(args))    // Write Over Serial
+#define availableData() (Serial1.available())    // Check Serial Data Available
+#define readData()      (Serial1.read())         // Read Serial Data
+#define peekData()      (Serial1.peek())         // Peek Serial Data
+#define beginCom(args)  (Serial1.begin(args))    // Begin Serial Comunication
+#define endCom()        (Serial1.end())          // End Serial Comunication
 
 // Macro for Timing
 

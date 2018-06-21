@@ -67,14 +67,20 @@ class Alarm
 {
     int tonePin;
     public:
-    Alarm(int _tonPin):tonePin(_tonPin){}
+    Alarm(int _tonPin):tonePin(_tonPin){
+        pinMode(tonePin,OUTPUT);//设置蜂鸣器的pin为输出模式
+    }
 
     void start(){
+
+        
         for(int i=0;i<sizeof(tune_start)/sizeof(tune_start[0]);++i){
              tone(tonePin,tune_start[i]);//此函数依次播放tune序列里的数组，即每个音符
              delay(400*duration_start[i]);//每个音符持续的时间，即节拍duration，400是调整时间的越大，曲子速度越慢，越小曲子速度越快，自己掌握吧
              noTone(tonePin);//停止当前音符，进入下一音符
         }
+        
+
     }
 
     void success(){
@@ -83,6 +89,22 @@ class Alarm
              delay(400*duration_success[i]);//每个音符持续的时间，即节拍duration，400是调整时间的越大，曲子速度越慢，越小曲子速度越快，自己掌握吧
              noTone(tonePin);//停止当前音符，进入下一音符
         }
+    }
+
+    void warning()
+    {
+        for (int i = 200; i <= 600; i++) //用循环的方式将频率从200HZ 增加到800HZ
+        {
+            tone(tonePin, i); //在四号端口输出频率
+            delay(5);   //该频率维持5毫秒
+        }
+        delay(1500); //最高频率下维持4秒钟
+        for (int i = 600; i >= 200; i--)
+        {
+            tone(tonePin, i);
+            delay(5);
+        }
+        noTone(tonePin);
     }
 };
 
