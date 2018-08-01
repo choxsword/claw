@@ -490,18 +490,22 @@ int DynamixelClass::readPosition()
 		Incoming_Byte = readData();
 		if ( (Incoming_Byte == 255) & (peekData() == 255) ){
 			readData();                            // Start Bytes
-			readData();                            // Ax-12 ID
-			readData();                            // Length
+			int id= readData();                            // Ax-12 ID
+			int len=readData();                            // Length
 			if( (Error_Byte = readData()) != 0 )   // Error
 				return (Error_Byte*(-1));
 			Position_Low_Byte = readData();            // Position Bytes
 			Position_High_Byte = readData();
+			int checksum = readData();
+			int ideal_sum = (~(id + len + Error_Byte + Position_High_Byte + Position_Low_Byte)) & 0xFF;
+			if(ideal_sum!=checksum)
+				return -20;
 			Position_Long_Byte = Position_High_Byte << 8; 
 			Position_Long_Byte = Position_Long_Byte + Position_Low_Byte;
 		}
     }
 	if(Time_Counter>=TIME_OUT)
-		return 666;
+		return -1;
 	return (Position_Long_Byte);     // Returns the read position
 }
 
@@ -540,7 +544,7 @@ int DynamixelClass::readVoltage()
 		}
     }
 	if(Time_Counter>=TIME_OUT)
-		return 666;
+		return -20;
 
 	return (Voltage_Byte);               // Returns the read Voltage
 }
@@ -896,22 +900,67 @@ int DynamixelClass::readSpeed()
 		Incoming_Byte = readData();
 		if ( (Incoming_Byte == 255) & (peekData() == 255) ){
 			readData();                            // Start Bytes
-			readData();                            // Ax-12 ID
-			readData();                            // Length
+			int id=readData();                            // Ax-12 ID
+			int len=readData();                            // Length
 			if( (Error_Byte = readData()) != 0 )   // Error
 				return (Error_Byte*(-1));
 			
 			Speed_Low_Byte = readData();            // Position Bytes
 			Speed_High_Byte = readData();
+			int checksum = readData();
+			int ideal_sum = (~(id + len + Error_Byte + Speed_Low_Byte + Speed_High_Byte)) & 0xFF;
+			if (checksum != ideal_sum)
+				return -20;
+
 			Speed_Long_Byte = Speed_High_Byte << 8; 
 			Speed_Long_Byte = Speed_Long_Byte + Speed_Low_Byte;
-			is_cw=(Speed_Long_Byte&0x400)!=0;
-			Speed_Long_Byte&=0x03FF;
-			if(!is_cw)
-				Speed_Long_Byte*=-1;
+	/*		is_cw=(Speed_Long_Byte&0x400)!=0;
+			Speed_Long_Byte&=0x03FF;*/
+			/*if(!is_cw)
+				Speed_Long_Byte*=-1;*/
 		}
     }
 	return (Speed_Long_Byte);     // Returns the read position
+}
+
+int DynamixelClass::readSpeedOrigin() {
+	Checksum = (~(ID + AX_POS_LENGTH + AX_READ_DATA + AX_PRESENT_SPEED_L + AX_BYTE_READ_POS)) & 0xFF;
+
+	switchCom(Direction_Pin, Tx_MODE);
+	sendData(AX_START);
+	sendData(AX_START);
+	sendData(ID);
+	sendData(AX_POS_LENGTH);
+	sendData(AX_READ_DATA);
+	sendData(AX_PRESENT_SPEED_L);
+	sendData(AX_BYTE_READ_POS);
+	sendData(Checksum);
+	delayus(TX_DELAY_TIME);
+	switchCom(Direction_Pin, Rx_MODE);
+
+	Speed_Long_Byte = -1;
+	Time_Counter = 0;
+	while ((availableData() < 7) & (Time_Counter < TIME_OUT)) {
+		Time_Counter++;
+		delayus(WAIT_RDT);
+	}
+
+	while (availableData() > 0) {
+		Incoming_Byte = readData();
+		if ((Incoming_Byte == 255) & (peekData() == 255)) {
+			readData();                            // Start Bytes
+			readData();                            // Ax-12 ID
+			readData();                            // Length
+			if ((Error_Byte = readData()) != 0)   // Error
+				return (Error_Byte*(-1));
+			Speed_Low_Byte = readData();            // Position Bytes
+			Speed_High_Byte = readData();
+			Speed_Long_Byte = Speed_High_Byte << 8;
+			Speed_Long_Byte = Speed_Long_Byte + Speed_Low_Byte;
+		}
+	}
+	return (Speed_Long_Byte);     // Returns the read position
+
 }
 
 int DynamixelClass::readLoad()

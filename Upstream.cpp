@@ -10,11 +10,11 @@
 #define PROTOCOL_SECOND  0x22
 using namespace xzj;
 
+void Upstream::check() {
 
-Command Upstream::check() {
+	rcv_cmd = Command::Undefined;
 	if (availableData() < 6)
-		return Command::Undefined;
-
+		return;
 		//Serial.write(readData());
 	int Incoming_Byte = readData();
 	if ((Incoming_Byte == PROTOCOL_FIRST) && ((unsigned char)peekData() ==(unsigned char) PROTOCOL_SECOND)) {
@@ -24,23 +24,29 @@ Command Upstream::check() {
 		int High_Byte = readData();
 		int check_sum = readData();
 		if (((~(cmd + Low_Byte + High_Byte)) & 0xff) != check_sum)
-			return Command::Undefined;
-	
+		{
+			return;
+		}
 		int Long_Byte = High_Byte << 8;
-		Long_Byte = Long_Byte + Low_Byte;
-		Command rcv_cmd = static_cast<Command>(cmd);
-		feed_back(rcv_cmd);
-		return rcv_cmd;
+		rcv_data = Long_Byte + Low_Byte;
+		rcv_cmd = static_cast<Command>(cmd);
+		feed_back(Command::RcvCmd, 0);//反馈收到指令，不用对应具体指令，就算上位机重传，底下也有下位机保证。
+		return;
 	}
-
-	return Command::Undefined;
+	return;
 }
 
-void Upstream::feed_back(const Command& status){
+
+void Upstream::feed_back(const Command& status,int val){
     sendData(PROTOCOL_FIRST);
     sendData(PROTOCOL_SECOND);
     int cstatus=static_cast<int>(status);
+	int lowb=val&0xff;
+	int highb=val>>8;
 	sendData(cstatus);
-	int Checksum=(~cstatus)&0xff;
+	sendData(lowb);
+	sendData(highb);
+	int Checksum=(~(cstatus+lowb+highb))&0xff;
     sendData(Checksum);
 }
+

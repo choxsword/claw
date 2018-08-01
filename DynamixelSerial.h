@@ -242,7 +242,7 @@ public:
 	
 	int setID( unsigned char newID);
 	int setBD( long baud);
-	
+	int readSpeedOrigin();
 	int move( int Position);
 	int moveSpeed( int Position, int Speed);
 	int setEndless(bool Status);
