@@ -7,7 +7,6 @@ int main()
 	float u=0;
 	
     Fuzzy_controller fuzzy(3,3,3);
-cout<<fuzzy.test(-3,-3)<<endl;
-
+cout<<fuzzy.realize(2.6,1)<<endl;
 	return 0;
 }

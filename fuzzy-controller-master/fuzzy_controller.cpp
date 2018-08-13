@@ -7,9 +7,9 @@ target(0),actual(0),emax(e_max),demax(de_max),umax(u_max)
    e=target-actual;
    e_pre=0;
    de=e-e_pre;
-   Ke=(N/2)/emax;
-   Kde=(N/2)/demax;
-   Ku=umax/(N/2);
+   Ke=((float)N/2)/emax;
+   Kde=((float)N/2)/demax;
+   Ku=umax/((float)N/2);
 }
 
 Fuzzy_controller::~Fuzzy_controller()
@@ -93,6 +93,15 @@ float Fuzzy_controller::realize(float t,float a)
 			u_de_index[j++]=i;                                                    //存储被激活的模糊子集的下标，可以减小计算量
 	}
 	for(;j<3;j++)u_de_index[j]=0;
+
+	for(int i=0;i<3;++i){
+		cout<<u_e_index[i]<<' ';
+	}
+	for(int i=0;i<3;++i){
+		cout<<u_de_index[i]<<' ';
+	}
+	cout<<e<<' '<<e_pre<<' '<<de<<' ';
+	cout<<endl;
 
 	float den=0,num=0;
 	for(int m=0;m<3;m++)

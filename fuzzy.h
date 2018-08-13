@@ -19,7 +19,6 @@ class Fuzzy_controller
     float target;   //系统的控制目标
     float actual;   //采样获得的实际值
     float e;        //误差
-    float e_pre;    //上一次的误差
     float de;       //误差的变化率
     float emax;     //误差基本论域上限
     float demax;    //误差辩化率基本论域的上限
@@ -27,6 +26,7 @@ class Fuzzy_controller
     float Ke;       //Ke=n/emax,量化论域为[-3,-2,-1,0,1,2,3]
     float Kde;      //Ke=n/demax,量化论域为[-3,-2,-1,0,1,2,3]
     float Ku;       //Ke=umax/n,量化论域为[-3,-2,-1,0,1,2,3]
+	float epre;    //上一次的误差
   	int (*rule)[7] =new int[7][7]{{NB,NB,NM,NM,NS,ZO,ZO},
 	                      {NB,NB,NM,NS,NS,ZO,PS},
 						  {NM,NM,NM,NS,ZO,PS,PS},
@@ -48,6 +48,8 @@ class Fuzzy_controller
     void setRule(int rulelist[N][N]); //设置模糊规则
     void set_para(float e_max, float de_max, float u_max);
     float realize(float t, float a);  //实现模糊控制
+	float realize_test(float t, float a,float *para);//测试错误在哪
+	float get_e_pre();
 };
 
 } // namespace xzj

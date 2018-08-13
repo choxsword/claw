@@ -3,6 +3,12 @@
 
 using namespace xzj;
 
+MyServo::MyServo(unsigned char _pin, long _baud, long _serial_baud) : pin(_pin), baud(_baud), serial_baud(_serial_baud)
+{
+	iMinAng = Adaptor::adapt_pos(min_ang + offset);
+	iMaxAng = Adaptor::adapt_pos(max_ang + offset);
+}
+
 int MyServo::mov_to(double pos){
     return DynamixelClass::move(Adaptor::adapt_pos(pos+offset));
 }
@@ -16,12 +22,17 @@ int MyServo::mov_speed(double pos, double speed){
     return DynamixelClass::moveSpeed(Adaptor::adapt_pos(pos+offset),hex_speed);
 }
 
+bool MyServo::is_in_place(const int& ideal_pos) {
+	return abs(ideal_pos - readPositionSafe()) <= 1;
+}
+
+
 double MyServo::read_pos(){
-    return Adaptor::rec_pos(DynamixelClass::readPosition())-offset;
+    return Adaptor::rec_pos(readPositionSafe())-offset;
 }
 
   double MyServo::read_speed(){
-    return Adaptor::rec_speed(DynamixelClass::readSpeed());
+    return Adaptor::rec_speed(readSpeedSafe());
 }
 
 
@@ -63,7 +74,6 @@ void MyServo::open_claw(Sensor& sensor){
     mov_speed(min_ang,60);
   do {
     pos = read_pos();
-    print(sensor.read_load());
   } while (abs(pos - min_ang) > 1);
   delay(wait_position);
 }
@@ -74,6 +84,7 @@ void MyServo::open_claw(double* speed){
     else
         mov_speed(min_ang,*speed);
 }
+
 
 void MyServo::close_claw(double*speed){
     if(speed==nullptr)

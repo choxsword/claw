@@ -36,7 +36,7 @@ void Upstream::check() {
 	return;
 }
 
-
+//反馈的val可以携带16位信息
 void Upstream::feed_back(const Command& status,int val){
     sendData(PROTOCOL_FIRST);
     sendData(PROTOCOL_SECOND);

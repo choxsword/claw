@@ -1,12 +1,24 @@
 #pragma once
 
 #include "Claw.h"
+//状态机相关宏
 #define INIT 0
 #define POS_CTRL 1
-//#define FORCE_CTRL 2
+#define FORCE_CTRL 2
+
+#define STATE_LOOP 3
+#define EXIT_LOOP 4
+#define STATE_STABLE 5
+
+//subscribe相关宏
 #define SUB_POS 0
 #define SUB_FORCE 1
 #define SUB_SPEED 2 
+
+//信息相关宏
+#define INFO_HOLD_ON 0
+#define INFO_HINT 1
+#define INFO_INT 2
 
 namespace xzj
 {
@@ -18,7 +30,6 @@ namespace xzj
 		IClawState( Controller* _ctrl) {
 			ctrl = _ctrl;
 		}
-
 	protected:
 		void general();
 		virtual void state_related(){}
@@ -38,6 +49,13 @@ namespace xzj
 		void state_related();
 	};
 	
+	class State_ForceCtrl :public IClawState {
+	public:
+		State_ForceCtrl(Controller* ctrl):IClawState(ctrl){}
+		void state_related();
+	};
+
+
 	class Controller {
 	public:
 		Controller(MyServo& _servo, Sensor & _sensor, Alarm& _alarm) :servo(_servo), sensor(_sensor), alarm(_alarm) {
@@ -46,6 +64,7 @@ namespace xzj
 			}
 			szStates[INIT] = new State_Init(this);
 			szStates[POS_CTRL] = new State_PosCtrl(this);
+			szStates[FORCE_CTRL] = new State_ForceCtrl(this);
 			CurState = szStates[INIT];
 			CurState->is_trans = false;
 
@@ -61,19 +80,48 @@ namespace xzj
 		MyServo & servo;
 		Sensor & sensor;
 		Alarm & alarm;
+
+		double hold_force = 1.0;//N;
 		double kp = 15;
 		double ki = 10;
+
+		double dPICtrl_P = 15.0;
+		double dPICtrl_I = 1;
+		int iPICtrl_Sample = 50.0;
+
+		double dPCtrl_P = 10;
+		int iPCtrl_Sample = 10;
+
+		int iFuzzy_Sample = 50;
+
 		int cur_speed = 0;
+		double dCurSpeed= 0.0;
 		int tar_pos = 0;
-		Fuzzy_controller fuzzy;
+		//Fuzzy_controller fuzzy;
 		Upstream up_conn;
 	public:
 
+		bool is_interrupt = false;//用于指示某个死循环中是否遇到了需要处理的指令
 		void check_bus();
-		void handle();
+		void handle();//处理上位机发来的请求
 		void init();
 		void publish();
+
+		void debug_report(Command cmd, int val);
+
 		Command get_cmd();
+
+		bool is_interruptted() {
+			/*bool& is_int =is_interrupt;
+			if (is_int) {
+				is_int = false;
+				debug_report(Command::DebugInfo, INFO_INT);
+				return true;
+			}
+			else
+				return false;*/
+			return is_interrupt;
+		}
 
 		~Controller() {
 			for (auto i : szStates) {
@@ -82,6 +130,7 @@ namespace xzj
 		}
 
 		void trans(int state) {
+			debug_report(Command::DebugState, state);
 			CurState = szStates[state];
 			CurState->is_trans = true;
 		}
@@ -90,10 +139,14 @@ namespace xzj
 			CurState->tick();
 		}
 
-		void grab_by_p(const double exp_force, const double v0 = 0);
+		void grab_by_try(const double exp_force, const double v0 = 80);
+
+		void open_claw();
+
+		void grab_by_p(const double exp_force, const double v0 = 80);
 		void test_p(const double exp_force, const double v0 = 0);
 
-		void grab_by_pi(const double, const double = 0);
+		void grab_by_pi(const double, const double = 80);
 		void test_pi(const double, const double = 0);
 
 		void grab_by_admit(const double);
@@ -107,9 +160,16 @@ namespace xzj
 
 		void test_fuzzy(const double exp_force, const double v0 = 0);
 		void grab_by_fuzzy(const double exp_force, const double v0 = 0);
+	private:
+		void Delay(int cnt);
+		void hold_lightly();
+
+		
 
 	public:
 		bool subscribe[3];
+		bool bToBeHandled = false;//用于跳出死循环后判断是否有待处理任务
+
 		void handle_subscribe() {
 			int val = up_conn.rcv_data;
 			subscribe[SUB_POS] = ((val & 4) != 0);
