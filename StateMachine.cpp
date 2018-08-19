@@ -84,6 +84,7 @@ void State_ForceCtrl::state_related() {
 		{
 			ctrl->is_interrupt = true;
 			ctrl->trans(POS_CTRL);
+			
 			break;
 		}
 
@@ -257,6 +258,11 @@ void Controller::handle() {
 		grab_by_try(Adaptor::sensor_i2d(up_conn.rcv_data));
 		break;
 	}
+	case Command::SetForce: {
+		fd = (Adaptor::sensor_i2d(up_conn.rcv_data));
+		break;
+	}
+
 	case Command::SetPCtrl_P: {
 		dPCtrl_P = Adaptor::format_i2d(up_conn.rcv_data);
 		//debug_report(Command::DebugValueDouble, dPCtrl_P / 100.0 * 1023);
@@ -287,22 +293,70 @@ void Controller::handle() {
 		//debug_report(Command::DebugValueInt, iPICtrl_Sample);
 		break;
 	}
+	case Command::MoveSpeed: {
+		int data = up_conn.rcv_data;
+		int pos = (data & 0x800) == 0 ? servo.iMaxAng : servo.iMinAng;
+		int iRet=servo.moveSpeed(pos, data & 0x7ff);
+		debug_report(Command::DebugInfo, INFO_HINT);
+		//debug_report(Command::DebugValueInt, iRet);
+		break;
+	}
+								
 	default:
 		break;
 	}
 }
 
-
-
-void Controller::grab_by_p(const double fd, const double v0)
+bool Controller::stable_judge(double e,double de) 
 {
-    kp=dPCtrl_P;
+	static bool bIsStable = true;
+	static int stable_cnt = 0;
+	if (bIsStable && abs(e) > 0.13)
+	{
+		stable_cnt = 0;
+		debug_report(Command::DebugState, STATE_UNSTABLE);
+		bIsStable = false;
+		return false;
+	}
+	if (!bIsStable &&abs(e) < 0.05) 
+	{
+		stable_cnt = 10;
+		debug_report(Command::DebugState, STATE_STABLE);
+		bIsStable = true;
+		return true;
+	}
+
+	if (de < 0.03)
+	{
+		if (stable_cnt < 10) {
+			++stable_cnt;
+		}
+		if (!bIsStable && stable_cnt >= 10)
+		{
+			debug_report(Command::DebugState, STATE_STABLE);
+			bIsStable = true;
+		}
+	}
+	else
+	{
+		if( bIsStable && (stable_cnt-=(de>0.05?5:3))<=0)
+		{
+			stable_cnt = 0;
+			debug_report(Command::DebugState, STATE_UNSTABLE);
+			bIsStable = false;
+		}
+	}
+	return bIsStable;
+}
+
+void Controller::grab_by_p(const double fd_deprecated, const double v0)
+{
     open_claw();
     alarm.start();
 
-    double uk = kp * fd;
+    double uk = dPCtrl_P * fd;
     double fk = 0;
-    double error = 0;
+    double error = 0,de=0,pre=0;
     double max_angle = servo.max_ang;
     double min_angle=servo.min_ang;
     launch(v0);
@@ -310,19 +364,19 @@ void Controller::grab_by_p(const double fd, const double v0)
     while (!is_interruptted())
     {
         fk = sensor.read_load();
-         error = fd - fk;
-/*		if (abs(error) < 0.05)
-			error = 0*/;
-        uk =-kp * error;
+        error = fd - fk;
+        uk =-dPCtrl_P * error;
 		double uk_servo = Adaptor::end_speed2servo_speed(uk, servo.read_pos());
-		//debug_report(Command::DebugInfo, INFO_HINT);
-		//debug_report(Command::DebugValueInt,Adaptor::adapt_speed(abs(uk_servo)));
-		//debug_report(Command::DebugValueDouble, servo.read_pos() / 100.0 * 1023);
-		/*debug_report(Command::DebugChar, uk_servo > 0.0 ? '+' : '-');
+	/*	debug_report(Command::DebugInfo, INFO_HINT)*/;
+	/*	debug_report(Command::DebugChar, uk_servo > 0.0 ? '+' : '-');
 		debug_report(Command::DebugValueDouble, abs(uk_servo) / 100.0 * 1023);*/
-
-        servo.mov_speed((uk_servo>0?max_angle:min_angle),abs(uk_servo));
-        Delay(iPCtrl_Sample);
+		int iSpeed = Adaptor::adapt_speed(abs(uk_servo));
+		/*debug_report(Command::DebugValueInt, iSpeed);*/
+        int iRet=servo.mov_speed((uk_servo>0?max_angle:min_angle),iSpeed);
+		de = error - pre;
+		pre = error;
+		stable_judge(error,de);
+		Delay(iPCtrl_Sample, iSpeed);
     }
 	debug_report(Command::DebugState, EXIT_LOOP);
 }
@@ -346,35 +400,50 @@ void Controller::hold_lightly() {
 	double fd = hold_force;
 	double max_angle = servo.max_ang;
 	double min_angle = servo.min_ang;
-	fuzzy.set_para(fd, 0.5, 60);
-	double e, pre;
+	
+	fuzzy.set_para(fd, 0.5, 15);
+	debug_report(Command::DebugState, STATE_LOOP);
+
+	double e=0, pre=0,de=fd;
 	unsigned int stable_cnt = 0;
-	while (!is_interruptted() && stable_cnt<20) {
+	while (!is_interruptted() && stable_cnt<10) {
 		fk = sensor.read_load();
-		uk = fuzzy.realize(fd, fk);
-		servo.mov_speed((uk>0 ? max_angle : min_angle), abs(uk));
+		uk = -fuzzy.realize(fd, fk);
+		double uk_servo = Adaptor::end_speed2servo_speed(uk, servo.read_pos());
+		servo.mov_speed((uk_servo>0 ? max_angle : min_angle), abs(uk_servo));
 		Delay(iFuzzy_Sample);
 		e = fd - fk;
-		if (abs(e) < 0.1)
+		de = e - pre;
+		pre = e;
+		if (de<0.03)
 			++stable_cnt;
+		else
+			stable_cnt = 0;
 	}
 	debug_report(Command::DebugState, STATE_STABLE);
 	unsigned int  unstable_cnt=0;
-	while (!is_interruptted() && stable_cnt<20) {
+	while (!is_interruptted()) 
+	{
 		fk = sensor.read_load();
-		uk = fuzzy.realize(fd, fk);
-		servo.mov_speed((uk>0 ? max_angle : min_angle), abs(uk));
+		uk = -fuzzy.realize(fd, fk);
+		double uk_servo = Adaptor::end_speed2servo_speed(uk, servo.read_pos());
+		servo.mov_speed((uk_servo>0 ? max_angle : min_angle), abs(uk_servo));
+		Delay(iFuzzy_Sample);
 		e = fd - fk;
-		if (e>0.1) {
-			++unstable_cnt;
-			if (unstable_cnt > 3) {
+		de = e - pre;
+		pre = e;
+		if (de>0.03) 
+		{
+			if (++unstable_cnt > 3&&e>0) 
+			{
+				debug_report(Command::DebugState, STATE_SLIP);
 				fd += 0.5;
+				unstable_cnt = 0;
 			}
 		}
 		else {
 			unstable_cnt = 0;
 		}
-		Delay(iFuzzy_Sample);
 	}
 }
 
@@ -422,15 +491,14 @@ void Controller::test_pi(const double fd, const double v0)
 
     alarm.success();
 }   
-void Controller::grab_by_pi(const double fd, const double v0)
+void Controller::grab_by_pi(const double fd_deprecated, const double v0)
 {
 	open_claw();
     alarm.start();
-    kp=dPICtrl_P;ki=dPICtrl_I;
     double vk_old = ki * fd;
     double uk = 0;
     double fk = 0;
-    double error_old = 0, error = fd;
+    double  error = fd,de=0,pre=0;
     double max_angle = servo.max_ang;
     double min_angle=servo.min_ang;
     launch(v0);
@@ -440,20 +508,23 @@ void Controller::grab_by_pi(const double fd, const double v0)
     {
         fk = sensor.read_load();
         error = fd - fk;
-		//消除抖动
-		/*if (abs(error) < 0.05)
-			error = 0;*/
-        uk -= kp * (error - error_old) + ki * error;//末端速度
-		double uk_servo = Adaptor::end_speed2servo_speed(uk, servo.read_pos());
+		if (abs(error) < 0.05) {
+			error = 0;
+		}
+		de = error - pre;
+		pre = error;
+        uk -= dPICtrl_P * de + dPICtrl_I * error;//末端速度
 		//debug_report(Command::DebugInfo, INFO_HINT);
-		//debug_report(Command::DebugValueDouble, servo.read_pos() / 100.0 * 1023);
-		//debug_report(Command::DebugChar, fk > 0.0 ? '+' : '-');
-		//debug_report(Command::DebugValueDouble, abs(fk)/ 100.0 * 1023);
-		//debug_report(Command::DebugChar, uk_servo > 0.0 ? '+' : '-');
-		//debug_report(Command::DebugValueDouble, abs(uk_servo) / 100.0 * 1023);
-        error_old=error;
-		servo.mov_speed((uk_servo>0 ? max_angle : min_angle), abs(uk_servo));
-		Delay(iPICtrl_Sample);
+	/*	debug_report(Command::DebugChar, uk_servo > 0.0 ? '+' : '-');
+		debug_report(Command::DebugValueDouble, abs(uk_servo) / 100.0 * 1023);*/
+		double uk_servo = Adaptor::end_speed2servo_speed(uk, servo.read_pos());
+		int iSpeed = Adaptor::adapt_speed(abs(uk_servo));
+		debug_report(Command::DebugValueInt, iSpeed);
+        int iRet=servo.mov_speed((uk_servo>0?max_angle:min_angle),iSpeed);
+		debug_report(Command::DebugValueInt, iSpeed);
+
+		stable_judge(error,de);
+		Delay(iPCtrl_Sample, iSpeed);
     }
 	debug_report(Command::DebugState,EXIT_LOOP);
 
@@ -486,33 +557,45 @@ void Controller::Delay(int cnt) {
 	}
 }
 
-void Controller::grab_by_fuzzy(const double fd,const double v0){
+void Controller::Delay(int cnt, int iSpeed) {
+		if (iSpeed < 8) 
+		{
+			Delay(CmdDelay[iSpeed]);
+		}
+		else 
+		{
+			Delay(iPCtrl_Sample);
+		}
+}
+
+void Controller::grab_by_fuzzy(const double fd_deprecated,const double v0){
 	Fuzzy_controller fuzzy;
 	open_claw();
     alarm.start();
     double uk=0;
     double fk=0;
+	double error = 0, pre = 0, de = 0;
     double max_angle = servo.max_ang;
     double min_angle=servo.min_ang;
-    fuzzy.set_para(fd,0.5,60);
+    fuzzy.set_para(1.5,0.2,2);
+	launch(v0);
 	debug_report(Command::DebugState, STATE_LOOP);
     while(!is_interruptted()) {
         fk=sensor.read_load();
-        uk=fuzzy.realize(fd,fk);
-
-		//debug_report(Command::DebugChar, uk > 0.0 ? '+' : '-');
-		//debug_report(Command::DebugValueDouble, abs(uk) / 100.0 * 1023);
-
-        servo.mov_speed((uk>0?max_angle:min_angle),abs(uk));
-        Delay(iFuzzy_Sample);
+        uk=-fuzzy.realize(fd,fk);
+	/*	debug_report(Command::DebugChar, uk > 0.0 ? '+' : '-');
+	    debug_report(Command::DebugValueDouble, abs(fd) / 100.0 * 1023);
+	    debug_report(Command::DebugValueDouble, abs(fk) / 100.0 * 1023);
+	    debug_report(Command::DebugValueDouble, abs(uk) / 100.0 * 1023);*/
+		error = fd - fk;
+		double uk_servo = Adaptor::end_speed2servo_speed(uk, servo.read_pos());
+		int iSpeed = Adaptor::adapt_speed(abs(uk_servo));
+        int iRet=servo.mov_speed((uk_servo>0?max_angle:min_angle),iSpeed);
+		debug_report(Command::DebugValueInt, iSpeed);
+		de = error - pre;
+		pre = error;
+		stable_judge(error,de);
+		Delay(iPCtrl_Sample, iSpeed);
     }
 	debug_report(Command::DebugState,EXIT_LOOP);
-	/*Fuzzy_controller fuzzy1;
-	fuzzy1.set_para(3, 3, 3);
-	debug_report(Command::DebugValueDouble, fuzzy1.get_e_pre()/100.0*1023);
-	debug_report(Command::DebugValueDouble, fuzzy1.realize(2.3,1)/ 100.0 * 1023);
-	debug_report(Command::DebugInfo, INFO_HINT);
-	for(int i=0;i<10;++i)
-		debug_report(Command::DebugValueDouble,a[i]/100.0*1023);*/
-
 }

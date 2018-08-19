@@ -78,6 +78,7 @@ float Fuzzy_controller::realize(float t,float a)
 	actual = a;
 	e = target - actual;
 	de = e - epre;
+	epre = e;
 	e = Ke * e;
 	de = Kde * de;
 	M = 3;               //三角函数有三个参数
@@ -108,7 +109,6 @@ float Fuzzy_controller::realize(float t,float a)
 	u = Ku * u;
 	if (u >= umax)   u = umax;
 	else if (u <= -umax)  u = -umax;
-	epre = e;
 	return u;
 }
 
@@ -119,9 +119,9 @@ void Fuzzy_controller::set_para(float e_max, float de_max, float u_max){
 	emax=e_max;
 	demax=de_max;
 	umax=u_max;
-	Ke=((float)N/2.0)/emax;
-    Kde=((float)N/2.0)/demax;
-    Ku=umax/((float)N/2.0);
+	Ke=3.0/emax;
+    Kde=3.0/demax;
+    Ku=umax/3.0;
 	epre = 0;
 }
 

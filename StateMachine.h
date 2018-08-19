@@ -9,6 +9,8 @@
 #define STATE_LOOP 3
 #define EXIT_LOOP 4
 #define STATE_STABLE 5
+#define STATE_SLIP 6
+#define STATE_UNSTABLE 7
 
 //subscribeÏà¹Øºê
 #define SUB_POS 0
@@ -81,14 +83,14 @@ namespace xzj
 		Sensor & sensor;
 		Alarm & alarm;
 
-		double hold_force = 1.0;//N;
+		double hold_force = 1.5;//N;
 		double kp = 15;
 		double ki = 10;
-
+		double fd = 0;
 		double dPICtrl_P = 15.0;
 		double dPICtrl_I = 1;
 		int iPICtrl_Sample = 50.0;
-
+		int CmdDelay[6] = { 30,300,150,100,60,50,50,40,30 };
 		double dPCtrl_P = 10;
 		int iPCtrl_Sample = 10;
 
@@ -131,6 +133,7 @@ namespace xzj
 
 		void trans(int state) {
 			debug_report(Command::DebugState, state);
+			debug_report(Command::DebugState, STATE_UNSTABLE);
 			CurState = szStates[state];
 			CurState->is_trans = true;
 		}
@@ -159,11 +162,12 @@ namespace xzj
 		void wait_print_pos(unsigned long time);
 
 		void test_fuzzy(const double exp_force, const double v0 = 0);
-		void grab_by_fuzzy(const double exp_force, const double v0 = 0);
+		void grab_by_fuzzy(const double exp_force, const double v0 = 80);
 	private:
 		void Delay(int cnt);
+		void Delay(int cnt, int speed);
 		void hold_lightly();
-
+		bool stable_judge(double e,double de);
 		
 
 	public:

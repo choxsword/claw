@@ -41,7 +41,7 @@ namespace xzj
 		MyServo(unsigned char _pin, long _baud, long _serial_baud);
 		int mov_to(double pos);
 		int mov_speed(double pos, double speed);
-
+		int mov_speed(double pos, int speed);
 		//返回抽象角度
 		double read_pos();
 		double read_speed();
@@ -90,7 +90,7 @@ namespace xzj
 		bool is_in_place(const double pos);
 		bool is_in_place(const int& ideal_pos);
 
-		const double min_ang = 0;
+		const double min_ang = 5;
 		const double max_ang = 95;
 		int iMinAng;
 		int iMaxAng;
@@ -134,8 +134,14 @@ namespace xzj
 		static double end_speed2servo_speed(double speed, double ang) {
 
 			double idx = speed_convert[0] * pow(ang, 3) + speed_convert[1] * pow(ang, 2) + speed_convert[2] * pow(ang, 1) + speed_convert[3];
-			return (speed * 100.0)/idx;
-
+			double servo_speed= (speed * 100.0)/idx;
+			if (abs(servo_speed) > 80)
+			{
+				return servo_speed > 0 ? 80 : -80;
+			}
+			else {
+				return servo_speed;
+			}
 		}
 		static double format_i2d(int input) {
 			return (double)input / 1023 * 100.0;

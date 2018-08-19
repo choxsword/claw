@@ -7,10 +7,10 @@ namespace xzj
 enum class Command{
 	//0-100为无需关心返回信息的，即只会返回一个简单的确认包
 	Undefined = 0, RcvCmd,
-	OpenClaw = 10, CloseClaw, Stop, Unload, Load, MoveTo,
+	OpenClaw = 10, CloseClaw, Stop, Unload, Load, MoveTo,MoveSpeed,
 	GrabByFuzzy, GrabByP, GrabByPI, GrabByImpedance, GrabByTry,
 	//配置参数30-50
-	Subscribe = 30, SetSpeed, SetPCtrl_P, SetPCtrl_Sample,
+	Subscribe = 30, SetSpeed,SetForce, SetPCtrl_P, SetPCtrl_Sample,
 	SetPICtrl_P, SetPICtrl_I, SetPICtrl_Sample,
 	SetFuzzy_Sample,
 

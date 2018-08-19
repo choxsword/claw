@@ -19,8 +19,16 @@ int MyServo::mov_speed(double pos, double speed){
        // stop();
         return -10;
     }
-    return DynamixelClass::moveSpeed(Adaptor::adapt_pos(pos+offset),hex_speed);
+	DynamixelClass::moveSpeed(Adaptor::adapt_pos(pos+offset),hex_speed);
 }
+int MyServo::mov_speed(double pos, int hex_speed){
+    if(hex_speed==0){
+		hex_speed = 1;
+    }
+		
+	DynamixelClass::moveSpeed(Adaptor::adapt_pos(pos+offset),hex_speed);
+}
+
 
 bool MyServo::is_in_place(const int& ideal_pos) {
 	return abs(ideal_pos - readPositionSafe()) <= 1;
@@ -84,7 +92,6 @@ void MyServo::open_claw(double* speed){
     else
         mov_speed(min_ang,*speed);
 }
-
 
 void MyServo::close_claw(double*speed){
     if(speed==nullptr)
