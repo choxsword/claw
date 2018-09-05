@@ -14,9 +14,9 @@ enum class Command{
 	SetPICtrl_P, SetPICtrl_I, SetPICtrl_Sample,
 	SetFuzzy_Sample,
 
-	ReadPos = 101, ReadSpeed, ReadForce,
+	ReadPos = 101, ReadSpeed, ReadForce,ReadForceVice,ReportNewForce,ReportForceTiny,
 	//200以上为调试用途
-	DebugState = 200, DebugValueInt, DebugValueDouble, DebugInfo, DebugChar
+	DebugState = 200, DebugValueInt, DebugValueDouble,DebugValueTiny, DebugInfo, DebugChar
 };
 
 class Upstream

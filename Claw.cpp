@@ -105,14 +105,15 @@ bool MyServo::is_in_place(const double pos){
 }
 
 double Sensor::read_load(){
-    int digit=analogRead(pin);
-    double volt= static_cast<double>(digit)/1023*5.0;
+	double volt = read_volt();
+	if (volt >= dZeroVolt)
+		return 0;
     double res = p4 * pow(volt, 4) + p3 * pow(volt, 3) + p2 * pow(volt, 2) + p1 * volt + p0;
     return res < 0 ? 0 : res;
 }
 
 int Sensor::readForceSafe() {
-	return analogRead(pin);
+	return read_load() / 10 * 1023;
 }
 
 double Sensor::read_volt()
@@ -132,4 +133,12 @@ bool Sensor::is_safe()
     return read_load() < threshold;
 }
 
+void xzj::Sensor::set_para(double para[])
+{
+	p0 = para[0];
+	p1 = para[1];
+	p2 = para[2];
+	p3 = para[3];
+	p4 = para[4];
+}
 

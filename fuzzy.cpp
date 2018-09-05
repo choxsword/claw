@@ -13,9 +13,9 @@ target(0),actual(0),emax(_e_max),demax(_de_max),umax(_u_max)
    e=target-actual;
    epre=0;
    de=e-epre;
-   Ke=((float)N/2)/emax;
-   Kde=((float)N/2)/demax;
-   Ku=umax/((float)N/2);
+   Ke=3.0/emax;
+   Kde=3.0/demax;
+   Ku=umax/3.0;
 }
 
 Fuzzy_controller::~Fuzzy_controller()

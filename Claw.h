@@ -11,21 +11,22 @@ namespace xzj
 	class Sensor
 	{
 	private:
-		const double p4 = 0.6699;
-		const double p3 = -10.559;
-		const double p2 = 62.764;
-		const double p1 = -169.1;
-		const double p0 = 177.51;
-		const unsigned char pin;
-		double threshold;
-
+		 double p4;
+		 double p3;
+		 double p2;
+		 double p1;
+		 double p0;
+		 int pin;
+		 double threshold;
+		 double dZeroVolt;
 	public:
-		Sensor(unsigned char _pin, double _threshold) : pin(_pin), threshold(_threshold) {}
+		Sensor(unsigned char _pin, double _threshold,double zero_level) : pin(_pin), threshold(_threshold),dZeroVolt(zero_level) {}
 		double read_load();
 		int readForceSafe();
 		double read_volt();
 		void alter_threshold(double);
 		bool is_safe();
+		void set_para(double para[]);
 	};
 
 	struct Info {
@@ -91,7 +92,7 @@ namespace xzj
 		bool is_in_place(const int& ideal_pos);
 
 		const double min_ang = 5;
-		const double max_ang = 95;
+		const double max_ang = 110;
 		int iMinAng;
 		int iMaxAng;
 	private:
